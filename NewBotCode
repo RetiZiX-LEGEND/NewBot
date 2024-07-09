@@ -1,0 +1,130 @@
+import os
+import discord
+from discord.ext import commands
+import random
+import requests
+from googletrans import Translator
+
+bot = commands.Bot(intents=discord.Intents.all(), command_prefix="/")
+
+@bot.command("information")
+async def command_information(ctx: commands.Context):
+    await ctx.send("Я демонстрационный бот😊")
+
+@bot.command("menu")
+async def menu(ctx: commands.Context):
+    menu_message = (
+        "Выберите режим:\n"
+        "1. Угадай число (от 1 до 10): /guess\n"
+        "2. Камень, ножницы, бумага: /rps\n"
+        "3. Калькулятор (сложение и вычитание): /calculator\n"
+        "4. Угадай слово: /guessword\n"
+        "5. Выбор случайного мема: /mem\n"
+        "6. Рандомная картинка из интернета: /duck\n"
+        "7. Получить случайный совет: /advice\n"
+    )
+    await ctx.send(menu_message)
+
+@bot.command("guess")
+async def guess(ctx: commands.Context):
+    number = random.randint(1, 10)
+    await ctx.send("Я загадал число от 1 до 10. Попробуйте угадать!")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel and m.content.isdigit()
+
+    guess = await bot.wait_for('message', check=check)
+    guess_number = int(guess.content)
+
+    if guess_number == number:
+        await ctx.send(f"Поздравляю! Вы угадали число {number}.")
+    else:
+        await ctx.send(f"Вы не угадали. Загаданное число было {number}.")
+
+@bot.command("rps")
+async def rps(ctx: commands.Context):
+    await ctx.send("Играем в Камень, ножницы, бумага! Напишите ваш выбор: камень, ножницы или бумага.")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in ['камень', 'ножницы', 'бумага']
+
+    user_choice = await bot.wait_for('message', check=check)
+    user_choice = user_choice.content.lower()
+    bot_choice = random.choice(['камень', 'ножницы', 'бумага'])
+
+    if user_choice == bot_choice:
+        result = "Ничья!"
+    elif (user_choice == 'камень' and bot_choice == 'ножницы') or \
+         (user_choice == 'ножницы' and bot_choice == 'бумага') or \
+         (user_choice == 'бумага' and bot_choice == 'камень'):
+        result = "Вы выиграли!"
+    else:
+        result = "Вы проиграли!"
+
+    await ctx.send(f"Вы выбрали: {user_choice}\nБот выбрал: {bot_choice}\n{result}")
+
+@bot.command("calculator")
+async def calculator(ctx: commands.Context):
+    await ctx.send("Введите выражение для вычисления (например, 2+2 или 5-3):")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    expression = await bot.wait_for('message', check=check)
+    try:
+        result = eval(expression.content, {"__builtins__": None}, {})
+        await ctx.send(f"Результат: {result}")
+    except Exception as e:
+        await ctx.send("Ошибка в выражении. Пожалуйста, используйте правильный формат, например, 2+2 или 5-3.")
+
+@bot.command("guessword")
+async def guessword(ctx: commands.Context):
+    words = ['яблоко', 'банан', 'апельсин', 'груша', 'виноград']
+    bot_word = random.choice(words)
+    await ctx.send(f"Я загадал одно из следующих слов: {', '.join(words)}. Попробуйте угадать!")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() in words
+
+    guess = await bot.wait_for('message', check=check)
+    user_word = guess.content.lower()
+
+    if user_word == bot_word:
+        await ctx.send(f"Поздравляю! Вы угадали слово {bot_word}.")
+    else:
+        await ctx.send(f"Вы не угадали. Загаданное слово было {bot_word}.")
+
+@bot.command("mem")
+async def mem(ctx: commands.Context):
+    images = os.listdir("images")
+    selected_image = random.choice(images)
+    with open(f"images/{selected_image}", "rb") as file:
+        image = discord.File(file)
+    await ctx.send("Лови мемчик!", file=image)
+
+def get_duck_image_url():    
+    url = 'https://random-d.uk/api/random'
+    res = requests.get(url)
+    data = res.json()
+    return data['url']
+
+@bot.command('duck')
+async def duck(ctx):
+    '''По команде duck вызывает функцию get_duck_image_url'''
+    image_url = get_duck_image_url()
+    await ctx.send(image_url)
+
+@bot.command("advice")
+async def advice(ctx: commands.Context):
+    '''По команде advice вызывает случайный совет из API и переводит его на русский'''
+    url = 'https://api.adviceslip.com/advice'
+    res = requests.get(url)
+    data = res.json()
+    advice_text = data['slip']['advice']
+
+    translator = Translator()
+    translated_advice = translator.translate(advice_text, dest='ru').text
+
+    await ctx.send(f"Совет: {translated_advice}")
+
+bot.run("Код пришлось скрыть")
